@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-labelledby="title desc">
+  <title id="title">stello11y OpenTelemetry Collector Flow</title>
+  <desc id="desc">Java and Go SDKs or custom frameworks send telemetry through OTLP gRPC to the collector, then custom processors and exporters send data to the stellspec backend.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .card { fill: #ffffff; stroke: #0f172a; stroke-width: 2; rx: 18; ry: 18; }
+      .primary { fill: #dbeafe; stroke: #1d4ed8; stroke-width: 2; rx: 18; ry: 18; }
+      .accent { fill: #dcfce7; stroke: #15803d; stroke-width: 2; rx: 18; ry: 18; }
+      .export { fill: #fef3c7; stroke: #b45309; stroke-width: 2; rx: 18; ry: 18; }
+      .backend { fill: #fee2e2; stroke: #b91c1c; stroke-width: 2; rx: 18; ry: 18; }
+      .title { font: 700 24px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .text { font: 600 18px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #0f172a; }
+      .sub { font: 500 14px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #334155; }
+      .label { font: 600 14px 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #1e293b; }
+      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#475569" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="280" rx="24" ry="24" />
+
+  <text class="title" x="40" y="46">stello11y-opentelemetry-collector Flow</text>
+
+  <rect class="card" x="40" y="90" width="220" height="120" rx="18" ry="18" />
+  <text class="text" x="70" y="135">Java / Go SDK</text>
+  <text class="text" x="70" y="165">自研框架</text>
+  <text class="sub" x="70" y="193">OpenTelemetry API / SDK</text>
+
+  <line class="arrow" x1="260" y1="150" x2="360" y2="150" />
+  <text class="label" x="286" y="134">OTLP/gRPC</text>
+  <text class="sub" x="292" y="172">localhost:4317</text>
+
+  <rect class="primary" x="360" y="90" width="250" height="120" rx="18" ry="18" />
+  <text class="text" x="392" y="140">stello11y-opentelemetry-collector</text>
+  <text class="sub" x="432" y="170">official OTLP Receiver</text>
+
+  <line class="arrow" x1="610" y1="150" x2="720" y2="150" />
+
+  <rect class="accent" x="720" y="90" width="180" height="120" rx="18" ry="18" />
+  <text class="text" x="750" y="145">自研 Processor</text>
+  <text class="sub" x="751" y="173">logs / metrics / traces</text>
+
+  <line class="arrow" x1="900" y1="150" x2="1000" y2="150" />
+
+  <rect class="export" x="1000" y="90" width="160" height="120" rx="18" ry="18" />
+  <text class="text" x="1028" y="145">自研 Exporter</text>
+  <text class="sub" x="1040" y="173">platform output</text>
+
+  <line class="arrow" x1="1080" y1="210" x2="1080" y2="245" />
+  <rect class="backend" x="970" y="245" width="220" height="26" rx="13" ry="13" />
+  <text class="label" x="1040" y="263">stellspec 后端</text>
+</svg>

@@ -1,0 +1,58 @@
+# Minimal runnable bootstrap config for this repository.
+# Scope:
+# - OTLP/gRPC only
+# - listen on localhost:4317 only
+# - logs / metrics / traces pipelines only
+#
+# Notes:
+# - The receiver is the official OTLP receiver.
+# - The receiver is the official OTLP receiver.
+# - The processor/exporter instances below are custom stellspec skeletons.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+
+processors:
+  stellspec_logs: {}
+  stellspec_metrics: {}
+  stellspec_traces: {}
+  deltatocumulative:
+    max_stale: 5m
+
+exporters:
+  stellspec_logs:
+    backend: stellflow
+    bootstrap_servers:
+      - stellflow://192.168.1.14:9092
+    client_id: stello11y-opentelemetry-collector
+    topic: stello11y.logs.app.prod.v1
+    topic_strategy: static
+    partition_key_strategy: trace_or_service_instance
+  otlphttp/victoriametrics:
+    compression: gzip
+    encoding: proto
+    metrics_endpoint: http://192.168.1.14:8428/opentelemetry/v1/metrics
+  otlp/tempo:
+    endpoint: 192.168.1.14:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [stellspec_logs]
+      exporters: [stellspec_logs]
+
+    metrics:
+      receivers: [otlp]
+      processors: [stellspec_metrics, deltatocumulative]
+      exporters: [otlphttp/victoriametrics]
+
+    traces:
+      receivers: [otlp]
+      processors: [stellspec_traces]
+      exporters: [otlp/tempo]
