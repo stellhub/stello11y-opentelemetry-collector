@@ -96,6 +96,44 @@ EOF
 sudo systemctl daemon-reload
 ```
 
+### 5.1 从 go build 到 systemd start
+
+源码更新后，可以按下面顺序完成构建、安装、配置校验和启动：
+
+```bash
+cd /data/stello11y-opentelemetry-collector
+go mod download
+go build -o ./bin/stello11y-opentelemetry-collector ./cmd
+
+sudo install -D -m 0755 ./bin/stello11y-opentelemetry-collector \
+  /opt/stello11y-opentelemetry-collector/bin/stello11y-opentelemetry-collector
+sudo install -D -m 0644 ./configs/collector.yaml \
+  /etc/stello11y-opentelemetry-collector/collector.yaml
+
+sudo /opt/stello11y-opentelemetry-collector/bin/stello11y-opentelemetry-collector validate \
+  --config /etc/stello11y-opentelemetry-collector/collector.yaml
+
+sudo systemctl daemon-reload
+sudo systemctl enable stello11y-opentelemetry-collector
+sudo systemctl start stello11y-opentelemetry-collector
+sudo systemctl status stello11y-opentelemetry-collector
+```
+
+如果只是替换二进制，推荐先构建和校验，再重启服务：
+
+```bash
+cd /data/stello11y-opentelemetry-collector
+go build -o ./bin/stello11y-opentelemetry-collector ./cmd
+sudo install -D -m 0755 ./bin/stello11y-opentelemetry-collector \
+  /opt/stello11y-opentelemetry-collector/bin/stello11y-opentelemetry-collector
+sudo /opt/stello11y-opentelemetry-collector/bin/stello11y-opentelemetry-collector validate \
+  --config /etc/stello11y-opentelemetry-collector/collector.yaml
+sudo systemctl restart stello11y-opentelemetry-collector
+sudo systemctl status stello11y-opentelemetry-collector
+```
+
+### 5.2 systemd 控制指南
+
 设置开机启动：
 
 ```bash
@@ -130,6 +168,39 @@ sudo systemctl restart stello11y-opentelemetry-collector
 
 ```bash
 sudo systemctl stop stello11y-opentelemetry-collector
+```
+
+查看最近 200 行日志：
+
+```bash
+sudo journalctl -u stello11y-opentelemetry-collector -n 200 --no-pager
+```
+
+查看当前 systemd unit 内容：
+
+```bash
+sudo systemctl cat stello11y-opentelemetry-collector
+```
+
+检查服务是否处于运行和开机自启状态：
+
+```bash
+systemctl is-active stello11y-opentelemetry-collector
+systemctl is-enabled stello11y-opentelemetry-collector
+```
+
+修改 service 文件后重新加载：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart stello11y-opentelemetry-collector
+```
+
+清理失败状态后再启动：
+
+```bash
+sudo systemctl reset-failed stello11y-opentelemetry-collector
+sudo systemctl start stello11y-opentelemetry-collector
 ```
 
 ## 6. 配置检查

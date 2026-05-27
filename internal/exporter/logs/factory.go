@@ -2,6 +2,8 @@ package logs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,20 +65,26 @@ type logsExporter struct {
 }
 
 type logEnvelope struct {
-	Signal                    string         `json:"signal"`
-	TimestampUnixNano         uint64         `json:"timestamp_unix_nano,omitempty"`
-	ObservedTimestampUnixNano uint64         `json:"observed_timestamp_unix_nano,omitempty"`
-	SeverityText              string         `json:"severity_text,omitempty"`
-	SeverityNumber            string         `json:"severity_number,omitempty"`
-	TraceID                   string         `json:"trace_id,omitempty"`
-	SpanID                    string         `json:"span_id,omitempty"`
-	TraceSampled              bool           `json:"trace_sampled,omitempty"`
-	Body                      any            `json:"body,omitempty"`
-	Attributes                map[string]any `json:"attributes,omitempty"`
-	Resource                  map[string]any `json:"resource,omitempty"`
-	ResourceSchemaURL         string         `json:"resource_schema_url,omitempty"`
-	Scope                     scopeEnvelope  `json:"scope,omitempty"`
-	ScopeSchemaURL            string         `json:"scope_schema_url,omitempty"`
+	Signal                          string         `json:"signal"`
+	TimeUnixNano                    uint64         `json:"timeUnixNano,omitempty"`
+	ObservedTimeUnixNano            uint64         `json:"observedTimeUnixNano,omitempty"`
+	SeverityText                    string         `json:"severityText,omitempty"`
+	SeverityNumber                  string         `json:"severityNumber,omitempty"`
+	TraceID                         string         `json:"traceId,omitempty"`
+	SpanID                          string         `json:"spanId,omitempty"`
+	TraceSampled                    bool           `json:"trace_sampled,omitempty"`
+	Body                            any            `json:"body,omitempty"`
+	Attributes                      map[string]any `json:"attributes,omitempty"`
+	Resource                        map[string]any `json:"resource,omitempty"`
+	ResourceSchemaURL               string         `json:"resource_schema_url,omitempty"`
+	Scope                           scopeEnvelope  `json:"scope,omitempty"`
+	ScopeSchemaURL                  string         `json:"scope_schema_url,omitempty"`
+	LegacyTimestampUnixNano         uint64         `json:"timestamp_unix_nano,omitempty"`
+	LegacyObservedTimestampUnixNano uint64         `json:"observed_timestamp_unix_nano,omitempty"`
+	LegacySeverityText              string         `json:"severity_text,omitempty"`
+	LegacySeverityNumber            string         `json:"severity_number,omitempty"`
+	LegacyTraceID                   string         `json:"trace_id,omitempty"`
+	LegacySpanID                    string         `json:"span_id,omitempty"`
 }
 
 type scopeEnvelope struct {
@@ -302,7 +310,8 @@ func (le *logsExporter) consumeLogs(ctx context.Context, ld plog.Logs) error {
 func (le *logsExporter) buildRecord(resourceLog plog.ResourceLogs, scopeLog plog.ScopeLogs, record plog.LogRecord) (producer.Record, error) {
 	topic := le.resolveTopic(resourceLog.Resource().Attributes(), record.Attributes())
 	key := le.resolvePartitionKey(resourceLog.Resource().Attributes(), record)
-	envelope := buildEnvelope(resourceLog, scopeLog, record)
+	tenantID := le.resolveTenantID(resourceLog.Resource().Attributes(), record.Attributes())
+	envelope := buildEnvelope(resourceLog, scopeLog, record, tenantID)
 	value, err := json.Marshal(envelope)
 	if err != nil {
 		return producer.Record{}, err
@@ -315,7 +324,7 @@ func (le *logsExporter) buildRecord(resourceLog plog.ResourceLogs, scopeLog plog
 		Headers: []message.RecordHeader{
 			header("content-type", "application/json"),
 			header("stello11y.signal", "logs"),
-			header("tenant.id", le.resolveTenantID(resourceLog.Resource().Attributes(), record.Attributes())),
+			header("tenant.id", tenantID),
 			header("service.name", attrString(resourceLog.Resource().Attributes(), "service.name")),
 			header("service.namespace", attrString(resourceLog.Resource().Attributes(), "service.namespace")),
 			header("deployment.environment.name", attrString(resourceLog.Resource().Attributes(), "deployment.environment.name")),
@@ -323,33 +332,83 @@ func (le *logsExporter) buildRecord(resourceLog plog.ResourceLogs, scopeLog plog
 	}, nil
 }
 
-func buildEnvelope(resourceLog plog.ResourceLogs, scopeLog plog.ScopeLogs, record plog.LogRecord) logEnvelope {
+func buildEnvelope(resourceLog plog.ResourceLogs, scopeLog plog.ScopeLogs, record plog.LogRecord, tenantID string) logEnvelope {
 	scope := scopeLog.Scope()
+	resourceAttrs := resourceLog.Resource().Attributes()
+	attributes := envelopeAttributes(record, tenantID, resourceAttrs)
+	timeUnixNano := uint64(record.Timestamp())
+	observedTimeUnixNano := uint64(record.ObservedTimestamp())
+	severityNumber := record.SeverityNumber().String()
 	envelope := logEnvelope{
-		Signal:                    "logs",
-		TimestampUnixNano:         uint64(record.Timestamp()),
-		ObservedTimestampUnixNano: uint64(record.ObservedTimestamp()),
-		SeverityText:              record.SeverityText(),
-		SeverityNumber:            record.SeverityNumber().String(),
-		TraceSampled:              record.Flags().IsSampled(),
-		Body:                      record.Body().AsRaw(),
-		Attributes:                record.Attributes().AsRaw(),
-		Resource:                  resourceLog.Resource().Attributes().AsRaw(),
-		ResourceSchemaURL:         resourceLog.SchemaUrl(),
+		Signal:               "logs",
+		TimeUnixNano:         timeUnixNano,
+		ObservedTimeUnixNano: observedTimeUnixNano,
+		SeverityText:         record.SeverityText(),
+		SeverityNumber:       severityNumber,
+		TraceSampled:         record.Flags().IsSampled(),
+		Body:                 record.Body().AsRaw(),
+		Attributes:           attributes,
+		Resource:             resourceAttrs.AsRaw(),
+		ResourceSchemaURL:    resourceLog.SchemaUrl(),
 		Scope: scopeEnvelope{
 			Name:       scope.Name(),
 			Version:    scope.Version(),
 			Attributes: scope.Attributes().AsRaw(),
 		},
-		ScopeSchemaURL: scopeLog.SchemaUrl(),
+		ScopeSchemaURL:                  scopeLog.SchemaUrl(),
+		LegacyTimestampUnixNano:         timeUnixNano,
+		LegacyObservedTimestampUnixNano: observedTimeUnixNano,
+		LegacySeverityText:              record.SeverityText(),
+		LegacySeverityNumber:            severityNumber,
 	}
 	if !record.TraceID().IsEmpty() {
 		envelope.TraceID = record.TraceID().String()
+		envelope.LegacyTraceID = envelope.TraceID
 	}
 	if !record.SpanID().IsEmpty() {
 		envelope.SpanID = record.SpanID().String()
+		envelope.LegacySpanID = envelope.SpanID
 	}
 	return envelope
+}
+
+func envelopeAttributes(record plog.LogRecord, tenantID string, resourceAttrs pcommon.Map) map[string]any {
+	attributes := copyMap(record.Attributes().AsRaw())
+	putIfMissing(attributes, "tenant.id", tenantID)
+	putIfMissing(attributes, "stellspec.event_id", stableEventID(record, attributes, resourceAttrs))
+	return attributes
+}
+
+func copyMap(source map[string]any) map[string]any {
+	copied := make(map[string]any, len(source)+2)
+	for key, value := range source {
+		copied[key] = value
+	}
+	return copied
+}
+
+func putIfMissing(values map[string]any, key string, value string) {
+	if value == "" {
+		return
+	}
+	if current, ok := values[key]; ok && strings.TrimSpace(fmt.Sprint(current)) != "" {
+		return
+	}
+	values[key] = value
+}
+
+func stableEventID(record plog.LogRecord, attributes map[string]any, resourceAttrs pcommon.Map) string {
+	parts := []string{
+		fmt.Sprint(uint64(record.Timestamp())),
+		fmt.Sprint(uint64(record.ObservedTimestamp())),
+		record.TraceID().String(),
+		record.SpanID().String(),
+		fmt.Sprint(record.Body().AsRaw()),
+		attrString(resourceAttrs, "service.name"),
+		fmt.Sprint(attributes["tenant.id"]),
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
+	return hex.EncodeToString(sum[:])
 }
 
 func (le *logsExporter) resolveTopic(resourceAttrs pcommon.Map, logAttrs pcommon.Map) string {

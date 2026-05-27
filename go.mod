@@ -4,7 +4,7 @@ go 1.25.9
 
 require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.151.0
-	github.com/stellhub/stellflow-go-sdk v0.0.1
+	github.com/stellhub/stellflow-go-sdk v0.0.2
 	go.opentelemetry.io/collector/component v1.57.0
 	go.opentelemetry.io/collector/confmap v1.57.0
 	go.opentelemetry.io/collector/confmap/provider/envprovider v1.57.0
