@@ -26,7 +26,7 @@ exporters:
   stellspec_logs:
     backend: stellflow
     bootstrap_servers:
-      - stellflow://192.168.1.14:9092
+      - stellflow://localhost:9092
     client_id: stello11y-opentelemetry-collector
     topic: stello11y.logs.app.prod.v1
     topic_strategy: static
@@ -34,9 +34,9 @@ exporters:
   otlphttp/victoriametrics:
     compression: gzip
     encoding: proto
-    metrics_endpoint: http://192.168.1.14:8428/opentelemetry/v1/metrics
+    metrics_endpoint: http://localhost:8428/opentelemetry/v1/metrics
   otlp/tempo:
-    endpoint: 192.168.1.14:4317
+    endpoint: localhost:4317
     tls:
       insecure: true
 
