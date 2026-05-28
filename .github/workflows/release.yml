@@ -20,11 +20,17 @@ jobs:
           - name: linux-amd64
             goos: linux
             goarch: amd64
-            output: stello11y-opentelemetry-collector-linux-amd64
+            binary: stello11y-opentelemetry-collector
+            package: stello11y-opentelemetry-collector-linux-amd64
+            archive: stello11y-opentelemetry-collector-linux-amd64.tar.gz
+            archive_type: tar
           - name: windows-amd64
             goos: windows
             goarch: amd64
-            output: stello11y-opentelemetry-collector-windows-amd64.exe
+            binary: stello11y-opentelemetry-collector.exe
+            package: stello11y-opentelemetry-collector-windows-amd64
+            archive: stello11y-opentelemetry-collector-windows-amd64.zip
+            archive_type: zip
 
     steps:
       - name: Checkout
@@ -48,14 +54,24 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          mkdir -p dist
-          go build -trimpath -ldflags "-s -w" -o "dist/${{ matrix.output }}" ./cmd
+          mkdir -p "dist/${{ matrix.package }}"
+          go build -trimpath -ldflags "-s -w" -o "dist/${{ matrix.package }}/${{ matrix.binary }}" ./cmd
+          cp configs/collector.yaml "dist/${{ matrix.package }}/collector.yaml"
+
+      - name: Package build
+        run: |
+          cd dist
+          if [ "${{ matrix.archive_type }}" = "zip" ]; then
+            zip -r "${{ matrix.archive }}" "${{ matrix.package }}"
+          else
+            tar -czf "${{ matrix.archive }}" "${{ matrix.package }}"
+          fi
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.output }}
-          path: dist/${{ matrix.output }}
+          name: ${{ matrix.archive }}
+          path: dist/${{ matrix.archive }}
           if-no-files-found: error
 
   release:
